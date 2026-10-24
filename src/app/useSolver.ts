@@ -7,11 +7,13 @@ export interface SolverHandle {
   status: SolverStatus;
   initMs: number | null;
   solve: (facelets: string) => Promise<SolverResult>;
+  restart: () => void;
 }
 
 export function useSolver(): SolverHandle {
   const [status, setStatus] = useState<SolverStatus>('warming');
   const [initMs, setInitMs] = useState<number | null>(null);
+  const [generation, setGeneration] = useState(0);
   const clientRef = useRef<SolverClient | null>(null);
 
   useEffect(() => {
@@ -30,7 +32,7 @@ export function useSolver(): SolverHandle {
         clientRef.current = null;
       }
     };
-  }, []);
+  }, [generation]);
 
   const solve = useCallback((facelets: string): Promise<SolverResult> => {
     const client = clientRef.current;
@@ -40,5 +42,13 @@ export function useSolver(): SolverHandle {
     return client.solve(facelets);
   }, []);
 
-  return { status, initMs, solve };
+  const restart = useCallback(() => {
+    clientRef.current?.dispose();
+    clientRef.current = null;
+    setStatus('warming');
+    setInitMs(null);
+    setGeneration((current) => current + 1);
+  }, []);
+
+  return { status, initMs, solve, restart };
 }

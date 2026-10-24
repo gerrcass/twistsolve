@@ -30,15 +30,13 @@ export function App() {
   const solver = useSolver();
   const reducedMotion = useReducedMotion();
   const runner = useCubeRunner({ solve: solver.solve });
-  const { state, scramble, solve, reset, manualTurn } = runner;
+  const { state, scramble, solve, reset, manualTurn, setModifier } = runner;
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       const target = event.target as HTMLElement | null;
       if (
-        target?.closest(
-          'input, textarea, select, button, a, [contenteditable="true"]',
-        )
+        target?.closest('input, textarea, select, [contenteditable="true"]')
       ) {
         return;
       }
@@ -47,8 +45,15 @@ export function App() {
       }
 
       if (event.key === 'Enter') {
+        if (target?.closest('button, a')) return;
         event.preventDefault();
         void solve();
+        return;
+      }
+
+      if (event.key === '2') {
+        event.preventDefault();
+        setModifier(state.modifier === 'half' ? 'quarter' : 'half');
         return;
       }
 
@@ -67,13 +72,23 @@ export function App() {
       const face = event.key.toUpperCase();
       if (isFace(face)) {
         event.preventDefault();
-        manualTurn(face, event.shiftKey ? 3 : 1);
+        manualTurn(
+          face,
+          event.shiftKey ? 3 : state.modifier === 'half' ? 2 : 1,
+        );
       }
     }
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [manualTurn, reset, scramble, solve]);
+  }, [
+    manualTurn,
+    reset,
+    scramble,
+    setModifier,
+    solve,
+    state.modifier,
+  ]);
 
   const recommended = runner.canSolve
     ? 'solve'
@@ -86,14 +101,23 @@ export function App() {
   const solutionActive =
     state.active?.source === 'solution' ? state.active.index : -1;
 
-  const solveDisabled =
-    !runner.canSolve || solver.status === 'error';
-  const solveLabel =
-    state.phase === 'solving'
+  const solverOffline = solver.status === 'error';
+  const solveDisabled = !runner.canSolve;
+  const solveLabel = solverOffline
+    ? 'Restart Solver'
+    : state.phase === 'solving'
       ? 'Searching'
       : state.phase === 'error'
         ? 'Try again'
         : 'Solve cube';
+
+  function handleSolve() {
+    if (solverOffline) {
+      solver.restart();
+      return;
+    }
+    void solve();
+  }
 
   return (
     <div className="app" data-phase={state.phase}>
@@ -116,6 +140,7 @@ export function App() {
             href={REPO_URL}
             target="_blank"
             rel="noreferrer"
+            aria-label="TwistSolve on GitHub"
           >
             <GithubIcon />
             <span>Source</span>
@@ -134,7 +159,11 @@ export function App() {
             Interactive 3D Rubik's Cube. Scramble it, solve it with the
             Kociemba Solver, or turn faces by hand.
           </p>
-          <CubeCanvas cube={state.cube} animation={state.animation} />
+          <CubeCanvas
+            cube={state.cube}
+            animation={state.animation}
+            reducedMotion={reducedMotion}
+          />
           <StageOverlay
             phase={state.phase}
             solverStatus={solver.status}
@@ -180,14 +209,14 @@ export function App() {
               <ActionButton
                 variant={recommended === 'solve' ? 'primary' : 'secondary'}
                 icon={<SparkIcon />}
-                onClick={() => void solve()}
+                onClick={handleSolve}
                 disabled={solveDisabled}
                 busy={state.phase === 'solving'}
                 shortcut="↵"
                 testId="solve-button"
                 title={
-                  solver.status === 'error'
-                    ? 'The Solver Worker is offline.'
+                  solverOffline
+                    ? 'Restart the Solver Worker.'
                     : undefined
                 }
               >

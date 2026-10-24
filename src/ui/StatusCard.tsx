@@ -1,6 +1,7 @@
 import type { Move } from '../cube';
 import type { ActiveMove, RunPhase, SolveReceipt } from '../app/runner';
 import type { SolverStatus } from '../solver/protocol';
+import { invertMoves, movesEqual } from '../cube';
 import { CheckIcon } from './icons';
 
 interface StatusCardProps {
@@ -89,18 +90,25 @@ export function StatusCard({
 }: StatusCardProps) {
   const copy = copyFor(phase, solverStatus, active, solution, scramble);
   const hasScramble = scramble.length > 0;
+  const notInverse =
+    receipt !== null &&
+    hasScramble &&
+    !movesEqual(solution, invertMoves(scramble));
 
   return (
     <section
       className="status-card"
       data-phase={phase}
       data-testid="status-card"
-      aria-live="polite"
     >
       <div className="status-card__head">
         <span className="status-card__dot" aria-hidden />
         <div>
-          <p className="status-card__label" data-testid="status-label">
+          <p
+            className="status-card__label"
+            data-testid="status-label"
+            aria-live="polite"
+          >
             {copy.label}
           </p>
           <p className="status-card__detail" data-testid="status-detail">
@@ -130,13 +138,23 @@ export function StatusCard({
             <span className="receipt__sep" aria-hidden>
               ·
             </span>
-            <span>Kociemba two-phase</span>
+            <span>Kociemba</span>
+            <span className="receipt__sep" aria-hidden>
+              ·
+            </span>
+            <span>not a rewind</span>
           </div>
 
-          <p className="receipt__note" data-testid="solution-not-inverse">
+          <p
+            className="receipt__note"
+            data-testid="solution-not-inverse"
+            data-value={notInverse}
+          >
             <CheckIcon />
             {hasScramble
-              ? 'Computed from this Cube State — not the inverse Scramble.'
+              ? notInverse
+                ? 'Computed from this Cube State — not the inverse Scramble.'
+                : 'Computed from this Cube State — the Scramble was not replayed.'
               : 'Computed from the current Cube State — not a rewind.'}
           </p>
         </div>

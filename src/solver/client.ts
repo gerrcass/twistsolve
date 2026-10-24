@@ -50,9 +50,9 @@ export function createSolverClient(
       return;
     }
 
-    if (message.id < 0) {
+    if (message.type === 'init-error') {
       onStatus('error');
-      rejectAll(message.type === 'error' ? message.reason : 'Solver failed.');
+      rejectAll(message.reason);
       return;
     }
 

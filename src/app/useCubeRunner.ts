@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import {
   applyMoves,
   faceletString,
@@ -6,27 +6,15 @@ import {
   isSolved,
 } from '../cube';
 import type { Amount, Face, Move } from '../cube';
-import type { TurnAnimationState } from '../animation';
 import type { SolverResult } from '../solver/protocol';
+import { MoveScheduler } from './moveScheduler';
 import {
   createRunnerState,
   isBusyPhase,
   runnerReducer,
 } from './runner';
-import type {
-  MoveSource,
-  RunnerAction,
-  RunnerState,
-  Speed,
-  TurnModifier,
-} from './runner';
+import type { RunnerState, Speed, TurnModifier } from './runner';
 import { useReducedMotion } from './useReducedMotion';
-
-interface QueueItem {
-  move: Move;
-  source: MoveSource;
-  index: number;
-}
 
 interface UseCubeRunnerOptions {
   solve: (facelets: string) => Promise<SolverResult>;
@@ -59,12 +47,18 @@ export interface CubeRunner {
 }
 
 export function useCubeRunner({ solve }: UseCubeRunnerOptions): CubeRunner {
-  const [state, dispatch] = useReducer(runnerReducer, undefined, createRunnerState);
+  const [state, dispatch] = useReducer(
+    runnerReducer,
+    undefined,
+    createRunnerState,
+  );
   const reducedMotion = useReducedMotion();
 
   const stateRef = useRef(state);
   const speedRef = useRef(state.speed);
   const reducedRef = useRef(reducedMotion);
+  const solveTokenRef = useRef(0);
+  const solveInFlightRef = useRef(false);
 
   useEffect(() => {
     stateRef.current = state;
@@ -72,121 +66,50 @@ export function useCubeRunner({ solve }: UseCubeRunnerOptions): CubeRunner {
     reducedRef.current = reducedMotion;
   }, [reducedMotion, state]);
 
-  const queueRef = useRef<QueueItem[]>([]);
-  const timerRef = useRef<number | null>(null);
-  const moveTokenRef = useRef(0);
-  const busyRef = useRef(false);
-  const solveTokenRef = useRef(0);
-  const stepRef = useRef<() => void>(() => undefined);
-
-  const clearTimer = useCallback(() => {
-    if (timerRef.current !== null) {
-      window.clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-  }, []);
-
-  const durationFor = useCallback((item: QueueItem): number => {
-    const base = SPEED_DURATIONS[speedRef.current];
-    const sourceFactor = item.source === 'scramble' ? SCRAMBLE_FACTOR : 1;
-    const turnFactor = item.move.amount === 2 ? HALF_TURN_FACTOR : 1;
-    return Math.round(base * sourceFactor * turnFactor);
-  }, []);
-
-  const finishQueue = useCallback(
-    (source: MoveSource) => {
-      busyRef.current = false;
-      dispatch({ type: 'queue-finished', source });
-    },
-    [dispatch],
-  );
-
-  const commit = useCallback(
-    (item: QueueItem, token: number) => {
-      if (token !== moveTokenRef.current) return;
-
-      dispatch({ type: 'move-commit', move: item.move, source: item.source });
-
-      if (queueRef.current.length === 0) {
-        finishQueue(item.source);
-        return;
-      }
-
-      timerRef.current = window.setTimeout(() => {
-        timerRef.current = null;
-        stepRef.current();
-      }, MOVE_GAP_MS);
-    },
-    [dispatch, finishQueue],
-  );
-
-  const step = useCallback(() => {
-    const item = queueRef.current.shift();
-    if (!item) {
-      busyRef.current = false;
-      return;
-    }
-
-    const token = moveTokenRef.current + 1;
-    moveTokenRef.current = token;
-    const duration = durationFor(item);
-
-    const animation: TurnAnimationState = {
-      move: item.move,
-      startedAt: performance.now(),
-      duration,
-      token,
-    };
-
-    dispatch({
-      type: 'move-start',
-      animation,
-      active: { source: item.source, index: item.index },
-    });
-
-    timerRef.current = window.setTimeout(() => {
-      timerRef.current = null;
-      commit(item, token);
-    }, duration);
-  }, [commit, dispatch, durationFor]);
+  const [scheduler, setScheduler] = useState<MoveScheduler | null>(null);
 
   useEffect(() => {
-    stepRef.current = step;
-  }, [step]);
+    const created = new MoveScheduler(
+      {
+        onStart: (animation, active) =>
+          dispatch({ type: 'move-start', animation, active }),
+        onCommit: (move, source) =>
+          dispatch({ type: 'move-commit', move, source }),
+        onFinish: (source) => dispatch({ type: 'queue-finished', source }),
+      },
+      {
+        durationFor: (item) => {
+          const base = SPEED_DURATIONS[speedRef.current];
+          const sourceFactor = item.source === 'scramble' ? SCRAMBLE_FACTOR : 1;
+          const turnFactor = item.move.amount === 2 ? HALF_TURN_FACTOR : 1;
+          return Math.round(base * sourceFactor * turnFactor);
+        },
+        gapMs: MOVE_GAP_MS,
+      },
+    );
 
-  const startAnimatedRun = useCallback(
-    (moves: readonly Move[], source: MoveSource, setup: RunnerAction) => {
-      busyRef.current = true;
-      queueRef.current = moves.map((move, index) => ({
-        move,
-        source,
-        index,
-      }));
-      dispatch(setup);
-      stepRef.current();
-    },
-    [dispatch],
-  );
+    setScheduler(created);
+    return () => created.cancel();
+  }, [dispatch]);
 
-  const cancelInFlight = useCallback(() => {
+  const cancelInFlightSolve = useCallback(() => {
     solveTokenRef.current += 1;
-    moveTokenRef.current += 1;
-    clearTimer();
-    queueRef.current = [];
-    busyRef.current = false;
-  }, [clearTimer]);
+    solveInFlightRef.current = false;
+  }, []);
 
   useEffect(
     () => () => {
-      cancelInFlight();
+      cancelInFlightSolve();
     },
-    [cancelInFlight],
+    [cancelInFlightSolve],
   );
 
   const scramble = useCallback(() => {
-    if (busyRef.current || stateRef.current.phase === 'solving') return;
+    if (!scheduler || scheduler.isBusy || stateRef.current.phase === 'solving') {
+      return;
+    }
 
-    cancelInFlight();
+    cancelInFlightSolve();
     const moves = generateScramble(25);
     dispatch({ type: 'scramble-start', moves });
 
@@ -195,20 +118,16 @@ export function useCubeRunner({ solve }: UseCubeRunnerOptions): CubeRunner {
       return;
     }
 
-    busyRef.current = true;
-    queueRef.current = moves.map((move, index) => ({
-      move,
-      source: 'scramble',
-      index,
-    }));
-    stepRef.current();
-  }, [cancelInFlight, dispatch]);
+    scheduler.start(moves, 'scramble');
+  }, [cancelInFlightSolve, dispatch, scheduler]);
 
   const solveCube = useCallback(async () => {
-    const current = stateRef.current;
-    if (busyRef.current || current.phase === 'solving') return;
-    if (isSolved(current.cube)) return;
+    if (!scheduler || scheduler.isBusy || solveInFlightRef.current) return;
 
+    const current = stateRef.current;
+    if (current.phase === 'solving' || isSolved(current.cube)) return;
+
+    solveInFlightRef.current = true;
     const runId = solveTokenRef.current + 1;
     solveTokenRef.current = runId;
     dispatch({ type: 'solve-start' });
@@ -241,11 +160,13 @@ export function useCubeRunner({ solve }: UseCubeRunnerOptions): CubeRunner {
         return;
       }
 
-      startAnimatedRun(result.moves, 'solution', {
-        type: 'solution-start',
-        moves: result.moves,
-        receipt,
-      });
+      dispatch({ type: 'solution-start', moves: result.moves, receipt });
+      if (!scheduler.start(result.moves, 'solution')) {
+        dispatch({
+          type: 'solve-failed',
+          message: 'The Move Queue was busy when the Solution arrived.',
+        });
+      }
     } catch (error) {
       if (runId !== solveTokenRef.current) return;
       dispatch({
@@ -255,19 +176,24 @@ export function useCubeRunner({ solve }: UseCubeRunnerOptions): CubeRunner {
             ? error.message
             : 'The Solver failed for an unknown reason.',
       });
+    } finally {
+      solveInFlightRef.current = false;
     }
-  }, [dispatch, solve, startAnimatedRun]);
+  }, [dispatch, scheduler, solve]);
 
   const reset = useCallback(() => {
-    cancelInFlight();
+    cancelInFlightSolve();
+    scheduler?.cancel();
     dispatch({ type: 'reset' });
-  }, [cancelInFlight, dispatch]);
+  }, [cancelInFlightSolve, dispatch, scheduler]);
 
   const manualTurn = useCallback(
     (face: Face, explicitAmount?: Amount) => {
-      if (busyRef.current || stateRef.current.phase === 'solving') return;
+      if (!scheduler || scheduler.isBusy || stateRef.current.phase === 'solving') {
+        return;
+      }
 
-      cancelInFlight();
+      cancelInFlightSolve();
       const { modifier } = stateRef.current;
       const move: Move = {
         face,
@@ -283,11 +209,9 @@ export function useCubeRunner({ solve }: UseCubeRunnerOptions): CubeRunner {
         return;
       }
 
-      busyRef.current = true;
-      queueRef.current = [{ move, source: 'manual', index: 0 }];
-      stepRef.current();
+      scheduler.start([move], 'manual');
     },
-    [cancelInFlight, dispatch],
+    [cancelInFlightSolve, dispatch, scheduler],
   );
 
   const setSpeed = useCallback(

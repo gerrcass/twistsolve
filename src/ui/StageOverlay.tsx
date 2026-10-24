@@ -1,3 +1,4 @@
+import { isBusyPhase } from '../app/runner';
 import type { RunPhase, Speed } from '../app/runner';
 import type { SolverStatus } from '../solver/protocol';
 import { CheckIcon } from './icons';
@@ -34,7 +35,7 @@ export function StageOverlay({
   onSpeedChange,
   reducedMotion,
 }: StageOverlayProps) {
-  const busy = phase === 'scrambling' || phase === 'solving' || phase === 'playing';
+  const busy = isBusyPhase(phase);
 
   return (
     <>

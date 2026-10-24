@@ -13,6 +13,11 @@ export interface ReadyMessage {
   initMs: number;
 }
 
+export interface InitErrorMessage {
+  type: 'init-error';
+  reason: string;
+}
+
 export interface SolvedMessage {
   type: 'solved';
   id: number;
@@ -36,6 +41,7 @@ export interface ErrorMessage {
 
 export type WorkerMessage =
   | ReadyMessage
+  | InitErrorMessage
   | SolvedMessage
   | InvalidMessage
   | ErrorMessage;

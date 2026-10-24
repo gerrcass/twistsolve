@@ -232,8 +232,10 @@ export function runnerReducer(
     case 'set-modifier':
       return { ...state, modifier: action.modifier };
 
-    default:
-      return state;
+    default: {
+      const exhaustive: never = action;
+      return exhaustive;
+    }
   }
 }
 

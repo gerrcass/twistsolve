@@ -1,5 +1,4 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import Cube from 'cubejs';
 import {
   applyMoves,
   createSolvedCube,
@@ -8,10 +7,10 @@ import {
   invertMoves,
   isSolved,
   movesEqual,
-  parseMoves,
 } from '../cube';
 import type { RandomSource } from '../cube';
 import { isFaceletString } from './protocol';
+import { initSolver, solveFacelets } from './solve';
 
 function mulberry32(seed: number): RandomSource {
   let state = seed >>> 0;
@@ -24,13 +23,8 @@ function mulberry32(seed: number): RandomSource {
   };
 }
 
-function solveFacelets(facelets: string): string {
-  const cube = Cube.fromString(facelets);
-  return cube.solve().trim();
-}
-
 beforeAll(() => {
-  Cube.initSolver();
+  initSolver();
 }, 60_000);
 
 describe('Solver contract', () => {
@@ -42,8 +36,8 @@ describe('Solver contract', () => {
 
       expect(isFaceletString(facelets)).toBe(true);
 
-      const notation = solveFacelets(facelets);
-      const solution = parseMoves(notation);
+      const result = solveFacelets(facelets);
+      const solution = result.moves;
       const solved = applyMoves(scrambled, solution);
 
       expect(isSolved(solved)).toBe(true);
@@ -57,9 +51,8 @@ describe('Solver contract', () => {
   });
 
   it('solves the Solved State back to itself', () => {
-    const notation = solveFacelets(faceletString(createSolvedCube()));
-    const solution = parseMoves(notation);
-    expect(isSolved(applyMoves(createSolvedCube(), solution))).toBe(true);
+    const result = solveFacelets(faceletString(createSolvedCube()));
+    expect(isSolved(applyMoves(createSolvedCube(), result.moves))).toBe(true);
   });
 
   it('accepts only 54 Facelets from the six Face letters', () => {
@@ -72,5 +65,6 @@ describe('Solver contract', () => {
   it('rejects a malformed Facelet string at the Solver boundary', () => {
     expect(isFaceletString('not-a-cube')).toBe(false);
     expect(isFaceletString('U'.repeat(54))).toBe(true);
+    expect(() => solveFacelets('not-a-cube')).toThrow(/54 characters/);
   });
 });

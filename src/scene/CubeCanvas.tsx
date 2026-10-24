@@ -16,6 +16,7 @@ import { CubieMesh } from './CubieMesh';
 interface CubeCanvasProps {
   cube: CubeState;
   animation: TurnAnimationState | null;
+  reducedMotion: boolean;
 }
 
 function ResponsiveCube({
@@ -41,7 +42,7 @@ function ResponsiveCube({
   );
 }
 
-function Studio() {
+function Studio({ reducedMotion }: { reducedMotion: boolean }) {
   return (
     <>
       <ambientLight intensity={0.5} />
@@ -92,20 +93,26 @@ function Studio() {
         />
       </mesh>
 
-      <Sparkles
-        count={26}
-        scale={[7, 4.5, 7]}
-        position={[0, 0.1, 0]}
-        size={1.6}
-        speed={0.18}
-        opacity={0.28}
-        color="#f2b34b"
-      />
+      {!reducedMotion && (
+        <Sparkles
+          count={26}
+          scale={[7, 4.5, 7]}
+          position={[0, 0.1, 0]}
+          size={1.6}
+          speed={0.18}
+          opacity={0.28}
+          color="#f2b34b"
+        />
+      )}
     </>
   );
 }
 
-export function CubeCanvas({ cube, animation }: CubeCanvasProps) {
+export function CubeCanvas({
+  cube,
+  animation,
+  reducedMotion,
+}: CubeCanvasProps) {
   const camera = useMemo(
     () => ({ position: [6.5, 5.4, 7.9] as [number, number, number], fov: 33 }),
     [],
@@ -124,12 +131,12 @@ export function CubeCanvas({ cube, animation }: CubeCanvasProps) {
       }}
     >
       <Suspense fallback={null}>
-        <Studio />
+        <Studio reducedMotion={reducedMotion} />
         <ResponsiveCube cube={cube} animation={animation} />
         <OrbitControls
           makeDefault
           enablePan={false}
-          enableDamping
+          enableDamping={!reducedMotion}
           dampingFactor={0.075}
           rotateSpeed={0.65}
           zoomSpeed={0.7}

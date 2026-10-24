@@ -4,10 +4,18 @@ import type { Face } from '../cube';
 import type { TurnModifier } from '../app/runner';
 import { KeyboardIcon } from './icons';
 
-const MODIFIERS: readonly { value: TurnModifier; label: string }[] = [
-  { value: 'quarter', label: '90°' },
-  { value: 'prime', label: '90°′' },
-  { value: 'half', label: '180°' },
+const MODIFIERS: readonly {
+  value: TurnModifier;
+  label: string;
+  accessibleName: string;
+}[] = [
+  { value: 'quarter', label: '90°', accessibleName: 'Quarter turn clockwise' },
+  {
+    value: 'prime',
+    label: '90°′',
+    accessibleName: 'Quarter turn counterclockwise',
+  },
+  { value: 'half', label: '180°', accessibleName: 'Half turn' },
 ];
 
 interface ManualPadProps {
@@ -36,6 +44,7 @@ export function ManualPad({
               type="button"
               className="segmented__button"
               aria-pressed={modifier === option.value}
+              aria-label={option.accessibleName}
               onClick={() => onModifierChange(option.value)}
               disabled={disabled}
             >
@@ -66,7 +75,7 @@ export function ManualPad({
       <p className="manual__hint">
         <KeyboardIcon />
         Keys <kbd>U</kbd> <kbd>R</kbd> <kbd>F</kbd> <kbd>D</kbd> <kbd>L</kbd>{' '}
-        <kbd>B</kbd> · Shift = prime
+        <kbd>B</kbd> · Shift = prime · <kbd>2</kbd> = 180°
       </p>
     </div>
   );

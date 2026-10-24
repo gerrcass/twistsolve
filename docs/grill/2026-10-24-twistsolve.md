@@ -71,7 +71,7 @@ What if the Solver rejects a Facelet string or takes too long?
 **Q13. Visual direction?**
 Playful primary colors, minimal white, or a dark workshop?
 
-➡️ **Dark workshop with warm amber light.** Charcoal ground, ivory Cubie bodies, saturated but slightly muted Stickers, monospace Move notation. Editorial, not toy-like.
+➡️ **Dark workshop with warm amber light.** Charcoal ground, graphite Cubie bodies, saturated but slightly muted Stickers, monospace Move notation. Editorial, not toy-like.
 
 **Q14. How do Turns animate?**
 Instant, springy, or eased quarter turns?
