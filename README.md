@@ -54,7 +54,7 @@ The cube itself is not a video: each Cubie owns its position and orientation, an
 | Reset | Click **Reset** or press <kbd>Esc</kbd> |
 | Turn a face | <kbd>U</kbd> <kbd>R</kbd> <kbd>F</kbd> <kbd>D</kbd> <kbd>L</kbd> <kbd>B</kbd>, or the face buttons |
 | Turn a face counterclockwise | Hold <kbd>Shift</kbd> with a face key, or use the `90°′` button mode |
-| Turn a face 180° | Use the `180°` button mode |
+| Turn a face 180° | Use the `180°` button mode or press <kbd>2</kbd> |
 | Orbit / zoom | Drag / scroll on the cube |
 
 Turn speed and Reduced Motion are respected during both Scramble and Solution playback.
@@ -79,7 +79,7 @@ npm run screenshot # capture assets/screenshot.png from a running preview
 - production build
 - a bundle boundary check proving `cubejs` appears only in the Solver Worker
 
-The Playwright path covers Scramble → Solve → Solved, Reduced Motion, a manual turn + reset, and a phone-width overflow check.
+The Playwright path covers Scramble → Solve → Solved, Reduced Motion, solving a hand-built state, keyboard focus survival, and a phone-width overflow check.
 
 ## Architecture
 
