@@ -86,7 +86,7 @@ The Playwright path covers Scramble → Solve → Solved, Reduced Motion, solvin
 ```text
 src/
 ├── cube/       pure engine: transformed Cubies, Moves, Scrambles, Facelets
-├── solver/     typed Web Worker boundary + cubejs adapter
+├── solver/     typed worker client, Solver adapter, worker
 ├── scene/      react-three-fiber stage, Cubies, Turn Animation
 ├── ui/         controls, Move lists, Solve Receipt, status
 └── app/        reducer, Move Queue, solver hook, keyboard bindings
