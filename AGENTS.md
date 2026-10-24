@@ -11,10 +11,17 @@ TwistSolve is a browser-based 3D Rubik's Cube. Scramble a real cube, press Solve
 - **Review rules**: `CODING_STANDARDS.md` — the review agent enforces these.
 - **Work tracking**: `docs/agents/issue-tracker.md`, `docs/agents/triage-labels.md`.
 - **Why the product is shaped this way**: `docs/grill/2026-10-24-twistsolve.md`.
+- **Session retro**: `docs/retro/2026-10-24-twistsolve.md`.
 
 ## Agents
 
 Run `npm run check` before handing work off. Scripts live in `package.json`; do not restate them here.
+
+Environment notes:
+
+- `.npmrc` sets `legacy-peer-deps=true` because npm 10's arborist fails on Vitest 4's optional peer graph. Keep it.
+- `npm run screenshot` expects a running preview (`npm run preview -- --port 4173`). The committed README image is the optimized WebP; the PNG is a local source.
+- `npm run check` includes the bundle boundary check. `cubejs` must stay in the Solver Worker graph.
 
 ## Agent skills
 
